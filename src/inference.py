@@ -1,9 +1,11 @@
-# src/sample.py
-import torch
 import os
-from .model import ConditionalDiffusionModel
-import yaml
+
 import matplotlib.pyplot as plt
+import torch
+import yaml
+
+from .model import ConditionalDiffusionModel
+
 
 def load_config(config_path="configs/diffusion_config.yaml"):
     with open(config_path, "r") as f:
@@ -13,7 +15,7 @@ def sample(model, config, num_samples=1, start_offset=0, scale_type=1, distortio
     """Генерация сэмплов с простым обратным процессом (DDPM)"""
     model.eval()
 
-   # Параметры диффузии из конфига 
+    # Параметры диффузии из конфига 
     T = config["diffusion"]["timesteps"]
     beta_start = config["diffusion"]["beta_start"]
     beta_end = config["diffusion"]["beta_end"]

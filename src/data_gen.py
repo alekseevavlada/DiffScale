@@ -1,9 +1,11 @@
-import numpy as np
-import matplotlib.pyplot as plt
 import os
-import pandas as pd
 from typing import List, Tuple
+
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
 import yaml
+
 
 class CodeScaleGenerator:
     def __init__(self, config_path: str = "configs/diffusion_config.yaml"):
@@ -56,62 +58,116 @@ class CodeScaleGenerator:
                 
         return scale
     
-    def generate_continuous_incremental_sequence(self, start_value: int = 0, num_images: int = 5) -> List[np.ndarray]:
-        """Генерация непрерывной последовательности инкрементных шкал"""
-        sequences = []
-    
-        for i in range(num_images):
-            # Плавное смещение для каждого следующего изображения
-            current_offset = start_value + i 
-            scale = self.generate_incremental_scale(current_offset)
-            sequences.append(scale)
+    def generate_coherent_sequence(
+        self,
+        base_offset: int = 0,
+        seq_length: int = 5,
+        distortion_type: str = "scratch",
+        seed: int = None
+    ) -> List[np.ndarray]:
+        """Генерация физически согласованной последовательности"""
+        if seed is not None:
+            np.random.seed(seed)
         
-        return sequences
+        # Генерируем идеальную последовательность
+        ideal_frames = []
+        for t in range(seq_length):
+            current_offset = base_offset + t
+            frame = self.generate_incremental_scale(current_offset)
+            ideal_frames.append(frame)
 
+        # Применяем одно и то же искажение ко всем кадрам
+        if distortion_type in ["scratch", "spot", "lighting"]:
+            # Создаём параметры дефекта один раз
+            defect_params = self._sample_defect_params(distortion_type)
+            distorted_frames = [
+                self._apply_defect_with_params(frame, distortion_type, defect_params)
+                for frame in ideal_frames
+            ]
+        else:
+            # Для шума/blur можно применять независимо
+            distorted_frames = [
+                self.apply_distortions(frame, distortion_type)
+                for frame in ideal_frames
+            ]
+
+        return distorted_frames   
+
+    def _sample_defect_params(self, distortion_type: str):
+        """Сохраняет параметры дефекта для воспроизводимости"""
+        if distortion_type == "scratch":
+            return {
+                "pos": np.random.randint(0, self.height),
+                "width": np.random.randint(1, 3),
+                "intensity": np.random.uniform(0.3, 0.7)
+            }
+        elif distortion_type == "spot":
+            return {
+                "y": np.random.randint(0, self.height),
+                "x": np.random.randint(0, self.width),
+                "h": np.random.randint(1, min(3, self.height)),
+                "w": np.random.randint(1, min(4, self.width)),
+                "intensity": np.random.choice([
+                    np.random.uniform(0.0, 0.3),
+                    np.random.uniform(0.7, 1.0)
+                ])
+            }
+        elif distortion_type == "lighting":
+            return {
+                "profile": np.linspace(0.7, 1.3, self.width)
+            }
+        return {}
+            
+    def _apply_defect_with_params(self, image: np.ndarray, distortion_type: str, params: dict):
+        """Применяет дефект с заданными параметрами"""
+        distorted = image.copy()
+        if distortion_type == "scratch":
+            y = params["pos"]
+            distorted[y:y+params["width"], :] *= params["intensity"]
+        elif distortion_type == "spot":
+            distorted[
+                params["y"]:params["y"]+params["h"],
+                params["x"]:params["x"]+params["w"]
+            ] = params["intensity"]
+        elif distortion_type == "lighting":
+            distorted *= params["profile"].reshape(1, -1)
+        return np.clip(distorted, 0, 1)
+    
     def apply_distortions(self, image: np.ndarray, distortion_type: str) -> np.ndarray:
         """Применение искажений к изображению"""
         distorted = image.copy()
         
         if distortion_type == "blur":
-            # Motion blur
             kernel_size = 5
             kernel = np.ones(kernel_size) / kernel_size
             for i in range(self.height):
                 distorted[i] = np.convolve(distorted[i], kernel, mode="same")
                 
         elif distortion_type == "noise":
-            # Gaussian noise
             noise = np.random.normal(0, 0.1, distorted.shape)
             distorted = distorted + noise
             
         elif distortion_type == "scratch":
-            # Симуляция царапины
             scratch_pos = np.random.randint(0, self.height)
             scratch_width = np.random.randint(1, 3)
             scratch_intensity = np.random.uniform(0.3, 0.7)
             distorted[scratch_pos:scratch_pos+scratch_width, :] *= scratch_intensity
             
         elif distortion_type == "lighting":
-            # Неравномерное освещение
             lighting_profile = np.linspace(0.7, 1.3, self.width)
             distorted *= lighting_profile.reshape(1, -1)
 
         elif distortion_type == "spot":
-            # Генерация одного или нескольких случайных пятен
             num_spots = np.random.randint(1, 4)  
             for _ in range(num_spots):
-                # Случайная позиция (y, x)
                 y = np.random.randint(0, self.height)
                 x = np.random.randint(0, self.width)
-                # Размер пятна: 1–3 пикселя по ширине, высота от 1 до 4 
                 spot_h = np.random.randint(1, min(3, self.height - y + 1))
                 spot_w = np.random.randint(1, min(4, self.width - x + 1))
-                # Интенсивность: может быть светлой (ближе к 1) или тёмной (ближе к 0)
                 intensity = np.random.choice([np.random.uniform(0.0, 0.3), np.random.uniform(0.7, 1.0)])
                 distorted[y:y+spot_h, x:x+spot_w] = intensity
 
         elif distortion_type == "noise_scratch_blur":
-            # Применяем все три искажения последовательно
             distorted = self.apply_distortions(image, "noise")
             distorted = self.apply_distortions(distorted, "scratch")
             distorted = self.apply_distortions(distorted, "blur")
@@ -124,7 +180,7 @@ class CodeScaleGenerator:
         
         return np.clip(distorted, 0, 1)
     
-    def generate_dataset(self, num_samples: int = 1000):
+    def generate_dataset(self, num_sequences: int = 10, seq_length: int = 5):
         """Генерация полного датасета"""
         os.makedirs("data/clean", exist_ok=True)
         os.makedirs("data/distorted", exist_ok=True)
@@ -133,8 +189,8 @@ class CodeScaleGenerator:
         # prbs_sequences = self.config["generation"]["prbs_sequences"]
         distortion_types = self.config["generation"]["distortion_types"]
 
-        seq_length = 5
-        for i in range(num_samples):
+        for seq_id in range(num_sequences):
+            base_offset = np.random.randint(0, 20)
             # Выбор типа шкалы
             # scale_type = "prbs" if np.random.random() > 0.5 else "incremental"
             
@@ -145,34 +201,53 @@ class CodeScaleGenerator:
             # else:
             #     start_value = np.random.randint(0, 5)
             #     image = self.generate_incremental_scale(start_value)
-
-            base_offset = np.random.randint(0, 20)
-            sequence = self.generate_continuous_incremental_sequence(base_offset, seq_length)
+            # Генерируем идеальную последовательность 
+            clean_sequence = []
+            for t in range(seq_length):
+                clean_frame = self.generate_incremental_scale(base_offset + t)
+                clean_sequence.append(clean_frame)
             
-            for j in range(seq_length):
-                image = sequence[j]
-                ideal_path = f"data/clean/{i:04d}_{j}.png"
-                plt.imsave(ideal_path, image, cmap="gray", vmin=0, vmax=1)
+            # Для каждого типа искажения создаём свою искажённую последовательность
+            for dist_type in distortion_types:
+                if dist_type in ["scratch", "spot", "lighting"]:
+                    # Фиксированные дефекты: генерируем параметры один раз
+                    defect_params = self._sample_defect_params(dist_type)
+                    distorted_sequence = [
+                        self._apply_defect_with_params(frame, dist_type, defect_params)
+                        for frame in clean_sequence
+                    ]
+                else:
+                    # Независимые искажения 
+                    distorted_sequence = [
+                        self.apply_distortions(frame, dist_type)
+                        for frame in clean_sequence
+                    ]
                 
-                for dist_type in distortion_types:
-                    distorted_image = self.apply_distortions(image, dist_type)
-                    distorted_path = f"data/distorted/{i:04d}_{j}_{dist_type}.png"
-                    plt.imsave(distorted_path, distorted_image, cmap="gray", vmin=0, vmax=1)
-                
-                metadata.append({
-                    "image_id": f"scale_{i:04d}_{j}",
-                    "scale_type": "incremental",
-                    "distortion_type": dist_type,
-                    "offset": int(base_offset + j),
-                    "ideal_path": ideal_path,
-                    "distorted_path": distorted_path
-                })
+                # Сохраняем пары
+                for t in range(seq_length):
+                    clean_path = f"data/clean/{seq_id:04d}_frame_{t:02d}.png"
+                    distorted_path = f"data/distorted/{seq_id:04d}_{dist_type}_frame_{t:02d}.png"
+                    
+                    # Сохраняем чистый кадр
+                    plt.imsave(clean_path, clean_sequence[t], cmap="gray", vmin=0, vmax=1)
+                    # Сохраняем искаженный кадр
+                    plt.imsave(distorted_path, distorted_sequence[t], cmap="gray", vmin=0, vmax=1)
+
+                    metadata.append({
+                        "sequence_id": seq_id,
+                        "frame_id": t,
+                        "scale_type": "incremental",
+                        "distortion_type": dist_type,
+                        "offset": base_offset + t,
+                        "clean_path": clean_path,
+                        "distorted_path": distorted_path
+                    })
         
         # Сохранение метаданных
         df = pd.DataFrame(metadata)
         df.to_csv("data/metadata.csv", index=False)
-        print(f"Сгенерировано {len(metadata)} изображений")
+        print(f"Сгенерировано {len(metadata)} кадров.")
 
 if __name__ == "__main__":
     generator = CodeScaleGenerator()
-    generator.generate_dataset(50)  
+    generator.generate_dataset()  
