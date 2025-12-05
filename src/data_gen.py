@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import yaml
+from PIL import Image
 
 
 class CodeScaleGenerator:
@@ -45,23 +46,23 @@ class CodeScaleGenerator:
         offset = start_value % self.mark_interval
         
         # Генерируем метки по всей ширине, но со смещением
-        for i in range(0, (self.width + self.mark_interval) // self.mark_interval):
-            x_start = i * self.mark_interval - offset
+        for i in range(self.width // self.line_width + 2):
+            x_start = (i * self.mark_interval - offset) % self.width
+            x_end = x_start + self.line_width
             
-            # Проверяем, что метка попадает в видимую область
-            if x_start < self.width and x_start + self.line_width > 0:
-                actual_start = max(0, x_start)
-                actual_end = min(x_start + self.line_width, self.width)
-                
-                if actual_start < actual_end:
-                    scale[:, actual_start:actual_end] = 1.0
+            if x_end <= self.width:
+                scale[:, x_start:x_end] = 1.0
+            else:
+                # Оборачиваем через правый край
+                scale[:, x_start:self.width] = 1.0
+                scale[:, 0:(x_end % self.width)] = 1.0
                 
         return scale
     
     def generate_coherent_sequence(
         self,
         base_offset: int = 0,
-        seq_length: int = 5,
+        seq_length: int = 50,
         distortion_type: str = "scratch",
         seed: int = None
     ) -> List[np.ndarray]:
@@ -180,7 +181,7 @@ class CodeScaleGenerator:
         
         return np.clip(distorted, 0, 1)
     
-    def generate_dataset(self, num_sequences: int = 10, seq_length: int = 5):
+    def generate_dataset(self, num_sequences: int = 1, seq_length: int = 50):
         """Генерация полного датасета"""
         os.makedirs("data/clean", exist_ok=True)
         os.makedirs("data/distorted", exist_ok=True)
@@ -188,9 +189,10 @@ class CodeScaleGenerator:
         metadata = []
         # prbs_sequences = self.config["generation"]["prbs_sequences"]
         distortion_types = self.config["generation"]["distortion_types"]
+        total_seq_id = 0
 
         for seq_id in range(num_sequences):
-            base_offset = np.random.randint(0, 20)
+            base_offset = np.random.randint(0, 100)
             # Выбор типа шкалы
             # scale_type = "prbs" if np.random.random() > 0.5 else "incremental"
             
@@ -201,13 +203,14 @@ class CodeScaleGenerator:
             # else:
             #     start_value = np.random.randint(0, 5)
             #     image = self.generate_incremental_scale(start_value)
+
             # Генерируем идеальную последовательность 
             clean_sequence = []
             for t in range(seq_length):
                 clean_frame = self.generate_incremental_scale(base_offset + t)
                 clean_sequence.append(clean_frame)
             
-            # Для каждого типа искажения создаём свою искажённую последовательность
+            # Генерация искажённой последовательности
             for dist_type in distortion_types:
                 if dist_type in ["scratch", "spot", "lighting"]:
                     # Фиксированные дефекты: генерируем параметры один раз
@@ -225,16 +228,24 @@ class CodeScaleGenerator:
                 
                 # Сохраняем пары
                 for t in range(seq_length):
-                    clean_path = f"data/clean/{seq_id:04d}_frame_{t:02d}.png"
-                    distorted_path = f"data/distorted/{seq_id:04d}_{dist_type}_frame_{t:02d}.png"
+                    clean_path = f"data/clean/.tiff/{total_seq_id:04d}_frame_{t:02d}.tiff"
+                    distorted_path = f"data/distorted/.tiff/{total_seq_id:04d}_{dist_type}_frame_{t:02d}.tiff"
                     
-                    # Сохраняем чистый кадр
-                    plt.imsave(clean_path, clean_sequence[t], cmap="gray", vmin=0, vmax=1)
-                    # Сохраняем искаженный кадр
-                    plt.imsave(distorted_path, distorted_sequence[t], cmap="gray", vmin=0, vmax=1)
+                    # clean_path = f"data/clean/.png/{total_seq_id:04d}_frame_{t:02d}.png"
+                    # distorted_path = f"data/distorted/.png/{total_seq_id:04d}_{dist_type}_frame_{t:02d}.png"
+                    
+                    # plt.imsave(clean_path, clean_sequence[t], cmap="gray", vmin=0, vmax=1)
+                    # plt.imsave(distorted_path, distorted_sequence[t], cmap="gray", vmin=0, vmax=1)
+
+                    # Сохраняем в TIFF через Pillow
+                    clean_uint8 = (clean_sequence[t] * 255).astype('uint8')
+                    distorted_uint8 = (distorted_sequence[t] * 255).astype('uint8')
+
+                    Image.fromarray(clean_uint8).save(clean_path)
+                    Image.fromarray(distorted_uint8).save(distorted_path)
 
                     metadata.append({
-                        "sequence_id": seq_id,
+                        "sequence_id": total_seq_id,
                         "frame_id": t,
                         "scale_type": "incremental",
                         "distortion_type": dist_type,
@@ -242,11 +253,14 @@ class CodeScaleGenerator:
                         "clean_path": clean_path,
                         "distorted_path": distorted_path
                     })
+
+                total_seq_id += 1
         
         # Сохранение метаданных
         df = pd.DataFrame(metadata)
         df.to_csv("data/metadata.csv", index=False)
-        print(f"Сгенерировано {len(metadata)} кадров.")
+        print(f"Сгенерировано {len(metadata)} изображений: "
+          f"{len(distortion_types)} типов искажений × {num_sequences} последовательностей × {seq_length} кадров.")
 
 if __name__ == "__main__":
     generator = CodeScaleGenerator()
