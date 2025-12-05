@@ -34,7 +34,7 @@ ENV/
 Thumbs.db
 
 # Data & Models 
-# data/
+data/
 checkpoints/
 outputs/
 logs/
