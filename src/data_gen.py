@@ -1,11 +1,11 @@
 import os
 from typing import List, Tuple
 
+from scipy.ndimage import shift as nd_shift
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import yaml
-from PIL import Image
 
 
 class CodeScaleGenerator:
@@ -37,44 +37,47 @@ class CodeScaleGenerator:
     #             break
                 
     #     return scale
-    
-    def generate_incremental_scale(self, start_value: int = 0) -> np.ndarray:
-        """Генерация инкрементальной шкалы"""
-        scale = np.zeros((self.height, self.width), dtype=np.float32)
 
-        # Вычисляем смещение, на сколько пикселей сдвинута вся шкала
-        offset = start_value % self.mark_interval
+    def generate_incremental_scale(self, position: float) -> np.ndarray:
+        """Генерация инкрементальной шкалы с субпиксельным сдвигом"""
+        # Создаём базовую шкалу без сдвига
+        base_scale = np.zeros((self.height, self.width), dtype=np.float32)
         
-        # Генерируем метки по всей ширине, но со смещением
-        for i in range(self.width // self.line_width + 2):
-            x_start = (i * self.mark_interval - offset) % self.width
-            x_end = x_start + self.line_width
-            
-            if x_end <= self.width:
-                scale[:, x_start:x_end] = 1.0
-            else:
-                # Оборачиваем через правый край
-                scale[:, x_start:self.width] = 1.0
-                scale[:, 0:(x_end % self.width)] = 1.0
-                
-        return scale
+        x_pos = 0
+        while x_pos < self.width:
+            end_x = min(x_pos + self.line_width, self.width)
+            if x_pos < self.width:
+                base_scale[:, int(x_pos):int(end_x)] = 1.0
+            x_pos += self.mark_interval
+        
+        # Сдвигаем шкалу на position пикселей с помощью интерполяции
+        shifted_scale = nd_shift(base_scale, position, mode='wrap', order=3)
+        
+        return shifted_scale
     
     def generate_coherent_sequence(
         self,
         base_offset: int = 0,
-        seq_length: int = 50,
+        seq_length: int = 30,
         distortion_type: str = "scratch",
         seed: int = None
     ) -> List[np.ndarray]:
-        """Генерация физически согласованной последовательности"""
+        """Генерация физически согласованной последовательности с первыми 10 статичными кадрами"""
         if seed is not None:
             np.random.seed(seed)
         
         # Генерируем идеальную последовательность
         ideal_frames = []
+        
         for t in range(seq_length):
-            current_offset = base_offset + t
-            frame = self.generate_incremental_scale(current_offset)
+            if t < 10:
+                # Первые 10 кадров статичные (одинаковое смещение)
+                absolute_pos = float(base_offset)
+            else:
+                # Остальные кадры двигаются с шагом 0.5 px
+                absolute_pos = base_offset + (t - 10) * 0.5
+            
+            frame = self.generate_incremental_scale(absolute_pos)
             ideal_frames.append(frame)
 
         # Применяем одно и то же искажение ко всем кадрам
@@ -92,7 +95,7 @@ class CodeScaleGenerator:
                 for frame in ideal_frames
             ]
 
-        return distorted_frames   
+        return distorted_frames
 
     def _sample_defect_params(self, distortion_type: str):
         """Сохраняет параметры дефекта для воспроизводимости"""
@@ -181,36 +184,26 @@ class CodeScaleGenerator:
         
         return np.clip(distorted, 0, 1)
     
-    def generate_dataset(self, num_sequences: int = 1, seq_length: int = 50):
-        """Генерация полного датасета"""
-        os.makedirs("data/clean", exist_ok=True)
-        os.makedirs("data/distorted", exist_ok=True)
+    def generate_dataset(self, num_sequences: int = 1, seq_length: int = 30):
+        """Генерация полного датасета с первыми 10 статичными кадрами"""
+        os.makedirs("Data/Clean", exist_ok=True)
+        os.makedirs("Data/Distorted", exist_ok=True)
         
         metadata = []
-        # prbs_sequences = self.config["generation"]["prbs_sequences"]
         distortion_types = self.config["generation"]["distortion_types"]
-        total_seq_id = 0
 
         for seq_id in range(num_sequences):
-            base_offset = np.random.randint(0, 100)
-            # Выбор типа шкалы
-            # scale_type = "prbs" if np.random.random() > 0.5 else "incremental"
+            base_offset = np.random.randint(0, 20)
             
-            # if scale_type == "prbs":
-            #     sequence = prbs_sequences[np.random.randint(0, len(prbs_sequences))]
-            #     start_pos = np.random.randint(0, 20)
-            #     image = self.generate_prbs_scale(sequence, start_pos)
-            # else:
-            #     start_value = np.random.randint(0, 5)
-            #     image = self.generate_incremental_scale(start_value)
-
-            # Генерируем идеальную последовательность 
-            clean_sequence = []
-            for t in range(seq_length):
-                clean_frame = self.generate_incremental_scale(base_offset + t)
-                clean_sequence.append(clean_frame)
+            # Генерируем идеальную последовательность с помощью нового метода
+            clean_sequence = self.generate_coherent_sequence(
+                base_offset=base_offset,
+                seq_length=seq_length,
+                distortion_type="none",  # Нет искажений для чистых кадров
+                seed=seq_id
+            )
             
-            # Генерация искажённой последовательности
+            # Для каждого типа искажения создаём свою искажённую последовательность
             for dist_type in distortion_types:
                 if dist_type in ["scratch", "spot", "lighting"]:
                     # Фиксированные дефекты: генерируем параметры один раз
@@ -228,39 +221,37 @@ class CodeScaleGenerator:
                 
                 # Сохраняем пары
                 for t in range(seq_length):
-                    clean_path = f"data/clean/.tiff/{total_seq_id:04d}_frame_{t:02d}.tiff"
-                    distorted_path = f"data/distorted/.tiff/{total_seq_id:04d}_{dist_type}_frame_{t:02d}.tiff"
-                    
-                    # clean_path = f"data/clean/.png/{total_seq_id:04d}_frame_{t:02d}.png"
-                    # distorted_path = f"data/distorted/.png/{total_seq_id:04d}_{dist_type}_frame_{t:02d}.png"
-                    
-                    # plt.imsave(clean_path, clean_sequence[t], cmap="gray", vmin=0, vmax=1)
-                    # plt.imsave(distorted_path, distorted_sequence[t], cmap="gray", vmin=0, vmax=1)
+                    clean_path = f"Data/Clean/{seq_id:04d}_frame_{t:02d}.png"
+                    distorted_path = f"Data/Distorted/{seq_id:04d}_{dist_type}_frame_{t:02d}.png"
 
-                    # Сохраняем в TIFF через Pillow
-                    clean_uint8 = (clean_sequence[t] * 255).astype('uint8')
-                    distorted_uint8 = (distorted_sequence[t] * 255).astype('uint8')
-
-                    Image.fromarray(clean_uint8).save(clean_path)
-                    Image.fromarray(distorted_uint8).save(distorted_path)
+                    # Вычисляем истинное смещение в пикселях
+                    if t < 10:
+                        current_offset = base_offset  # Статичные кадры
+                    else:
+                        current_offset = base_offset + (t - 10) * 0.5  # Движущиеся кадры
+                    
+                    true_dx = current_offset % self.mark_interval
+                    
+                    # Сохраняем чистый кадр
+                    plt.imsave(clean_path, clean_sequence[t], cmap="gray", vmin=0, vmax=1)
+                    # Сохраняем искаженный кадр
+                    plt.imsave(distorted_path, distorted_sequence[t], cmap="gray", vmin=0, vmax=1)
 
                     metadata.append({
-                        "sequence_id": total_seq_id,
+                        "sequence_id": seq_id,
                         "frame_id": t,
                         "scale_type": "incremental",
                         "distortion_type": dist_type,
-                        "offset": base_offset + t,
+                        "offset": current_offset,
+                        "true_dx": true_dx,
                         "clean_path": clean_path,
                         "distorted_path": distorted_path
                     })
-
-                total_seq_id += 1
         
         # Сохранение метаданных
         df = pd.DataFrame(metadata)
         df.to_csv("data/metadata.csv", index=False)
-        print(f"Сгенерировано {len(metadata)} изображений: "
-          f"{len(distortion_types)} типов искажений × {num_sequences} последовательностей × {seq_length} кадров.")
+        print(f"Сгенерировано {len(metadata)} кадров.")
 
 if __name__ == "__main__":
     generator = CodeScaleGenerator()
