@@ -77,4 +77,4 @@ Generate synthetic samples:
 python -m src.inference
 ```
 
-All hyperparameters (image size, distortions, timesteps, network depth) are configurable in `configs/diffusion_config.yaml`.
+All hyperparameters (image size, distortions, timesteps, network depth) are configurable in `DiffScale-main/configs/diffusion_config.yaml`.
