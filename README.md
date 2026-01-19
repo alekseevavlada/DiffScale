@@ -78,3 +78,13 @@ python -m src.inference
 ```
 
 All hyperparameters (image size, distortions, timesteps, network depth) are configurable in `DiffScale-main/configs/diffusion_config.yaml`.
+
+## References
+
+1. Zhao M, Yuan Y, Luo L, Li X. A Review: Absolute Linear Encoder Measurement Technology. Sensors. 2025; 25(19):5997. https://doi.org/10.3390/s25195997
+2. Jianxiang Liao, Xin Chen, Xindu Chen, Fangjian Zhang, and Han Wang "High speed image acquisition system of absolute encoder", Proc. SPIE 10322, Seventh International Conference on Electronics and Information Engineering, 103221C (23 January 2017); https://doi.org/10.1117/12.2265226
+3. Shi, Boxin & Zhao, Hang & Ben-Ezra, Moshe & Yeung, Sai-Kit & Fernandez-Cull, Christy & Shepard, Hamilton & Barsi, Christopher & Raskar, Ramesh. (2015). Sub-pixel Layout for Super-Resolution with Images in the Octic Group. 8689. 10.1007/978-3-319-10590-1_17. 
+4. Chang, Li & Xu, Hui & Liu, Ben & Li, Jian. (2010). All Digital Nanometer Subdivision Method to Process Coarse Grating Signal. Advanced Materials Research. 108-111. 1199-1204. 10.4028/www.scientific.net/AMR.108-111.1199. 
+5. Joseph D. Tobiason, Avron M. Zwilling, Casey E. Emtman. Compact Nanometer Resolution Fiber-optic Encoder with
+Embedded Reference Mark. Proceedings of the euspen International Conference, Delft (June 2010). 
+6. RESOLUTE optical absolute encoder series. https://www.renishaw.com/en/resolute-optical-absolute-encoder-series--37823?srsltid=AfmBOoqRuim0xJJDwzKioLOukfeyhXfnIczSu8chxkVGeBxQd_XaOkuh
