@@ -2,7 +2,6 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import math
-from typing import Optional
 
 class SinusoidalPositionEmbeddings(nn.Module):
     def __init__(self, dim: int):
@@ -20,7 +19,7 @@ class SinusoidalPositionEmbeddings(nn.Module):
 
 class ConditionalEmbedding(nn.Module):
     """Эмбеддинг для условий (scale_type + distortion_type)"""
-    def __init__(self, num_scale_types: int = 2, num_distortion_types: int = 7, max_offset: int = 200, embedding_dim: int = 128):
+    def __init__(self, num_scale_types: int = 2, num_distortion_types: int = 7, max_offset: int = 800, embedding_dim: int = 128):
         super().__init__()
         # Делим embedding_dim на 3 части
         part = embedding_dim // 3

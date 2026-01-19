@@ -12,7 +12,7 @@ from .model import ConditionalDiffusionModel
 from .dataset import CodeScalesDataset
 
 class DiffusionTrainer:
-    def __init__(self, config_path: str = "configs/diffusion_config.yaml"):
+    def __init__(self, config_path: str = "DiffScale-main/configs/diffusion_config.yaml"):
         with open(config_path, 'r') as f:
             self.config = yaml.safe_load(f)
         
@@ -34,7 +34,7 @@ class DiffusionTrainer:
         )
         
         # Датасет
-        self.dataset = CodeScalesDataset("data/metadata.csv")
+        self.dataset = CodeScalesDataset("DiffScale-main/data/metadata.csv")
         self.dataloader = DataLoader(
             self.dataset, 
             batch_size=self.config["training"]["batch_size"], 
@@ -42,7 +42,7 @@ class DiffusionTrainer:
         )
         
         # TensorBoard
-        self.writer = SummaryWriter("logs/diffusion")
+        self.writer = SummaryWriter("DiffScale-main/logs/diffusion")
         
         os.makedirs("checkpoints", exist_ok=True)
     
@@ -118,10 +118,10 @@ class DiffusionTrainer:
         }
         
         # Для дообучения
-        torch.save(checkpoint, f"checkpoints/diffusion_epoch_{epoch}.pt")
+        torch.save(checkpoint, f"DiffScale-main/checkpoints/diffusion_epoch_{epoch}.pt")
 
         # Для инференса (только веса)
-        torch.save(self.model.state_dict(), "outputs/model.pth")
+        torch.save(self.model.state_dict(), "DiffScale-main/outputs/model.pth")
 
 if __name__ == "__main__":
     trainer = DiffusionTrainer()

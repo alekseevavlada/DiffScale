@@ -1,11 +1,11 @@
 data:
-  image_width: 200  # Длина 
+  image_width: 800  # Длина
   image_height: 4   # Высота
   num_channels: 1
   
 generation:
-  line_width: 10
-  gap_width: 10
+  line_width: 40
+  gap_width: 40
   distortion_types:
   - blur
   - noise

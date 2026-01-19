@@ -7,7 +7,7 @@ import yaml
 from .model import ConditionalDiffusionModel
 
 
-def load_config(config_path="configs/diffusion_config.yaml"):
+def load_config(config_path="DiffScale-main/configs/diffusion_config.yaml"):
     with open(config_path, "r") as f:
         return yaml.safe_load(f)
 
@@ -73,13 +73,13 @@ def main():
     model = ConditionalDiffusionModel(config)
 
     # Загружаем только веса
-    state_dict = torch.load("outputs/model.pth", map_location=device, weights_only=True)
+    state_dict = torch.load("DiffScale-main/outputs/model.pth", map_location=device, weights_only=True)
     model.load_state_dict(state_dict)
     model.to(device)
     model.eval()
 
     # Папка для сэмплов
-    os.makedirs("outputs/samples", exist_ok=True)
+    os.makedirs("DiffScale-main/outputs/samples", exist_ok=True)
 
     # Генерация для разных условий
     sample_configs = [
@@ -101,7 +101,7 @@ def main():
         )
         samples = samples.cpu().numpy()
         for i in range(samples.shape[0]):
-            plt.imsave(f"outputs/samples/{prefix}_{i}.png", samples[i, 0], cmap="gray")
+            plt.imsave(f"DiffScale-main/outputs/samples/{prefix}_{i}.png", samples[i, 0], cmap="gray")
 
 if __name__ == "__main__":
     main()

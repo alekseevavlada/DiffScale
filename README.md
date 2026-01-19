@@ -2,7 +2,7 @@
 
 **Synthetic Code Scale Generation via Conditional Diffusion Models for Robust Angular Sensing**
 
-DiffScale is a deep learning framework designed to generate synthetic images of optical code scales used in digital angle transducers. The system leverages conditional diffusion models to produce both ideal and realistically distorted image sequences (200×4 pixels), enabling robust training and evaluation of angular reading algorithms under adverse conditions typical of robotic applications.
+DiffScale is a deep learning framework designed to generate synthetic images of optical code scales used in digital angle transducers. The system leverages conditional diffusion models to produce both ideal and realistically distorted image sequences (800×4 pixels), enabling robust training and evaluation of angular reading algorithms under adverse conditions typical of robotic applications.
 
 ## Overview
 
@@ -37,7 +37,7 @@ DiffScale addresses this challenge by:
 ## Project Structure
 
 ```
-DiffScale/
+DiffScale-main/
 ├── configs/              # Model and training hyperparameters
 ├── data/                 # Generated datasets (excluded from Git)
 │   ├── clean/            # Ideal (distortion-free) scale images

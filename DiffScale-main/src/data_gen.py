@@ -9,7 +9,7 @@ import yaml
 
 
 class CodeScaleGenerator:
-    def __init__(self, config_path: str = "configs/diffusion_config.yaml"):
+    def __init__(self, config_path: str = "DiffScale-main/configs/diffusion_config.yaml"):
         with open(config_path, "r") as f:
             self.config = yaml.safe_load(f)
         
@@ -186,8 +186,8 @@ class CodeScaleGenerator:
     
     def generate_dataset(self, num_sequences: int = 1, seq_length: int = 30):
         """Генерация полного датасета с первыми 10 статичными кадрами"""
-        os.makedirs("Data/Clean", exist_ok=True)
-        os.makedirs("Data/Distorted", exist_ok=True)
+        os.makedirs("DiffScale-main/data/clean", exist_ok=True)
+        os.makedirs("DiffScale-main/data/distorted", exist_ok=True)
         
         metadata = []
         distortion_types = self.config["generation"]["distortion_types"]
@@ -221,8 +221,8 @@ class CodeScaleGenerator:
                 
                 # Сохраняем пары
                 for t in range(seq_length):
-                    clean_path = f"Data/Clean/{seq_id:04d}_frame_{t:02d}.png"
-                    distorted_path = f"Data/Distorted/{seq_id:04d}_{dist_type}_frame_{t:02d}.png"
+                    clean_path = f"DiffScale-main/data/clean/{seq_id:04d}_frame_{t:02d}.png"
+                    distorted_path = f"DiffScale-main/data/distorted/{seq_id:04d}_{dist_type}_frame_{t:02d}.png"
 
                     # Вычисляем истинное смещение в пикселях
                     if t < 10:
@@ -250,7 +250,7 @@ class CodeScaleGenerator:
         
         # Сохранение метаданных
         df = pd.DataFrame(metadata)
-        df.to_csv("data/metadata.csv", index=False)
+        df.to_csv("DiffScale-main/data/metadata.csv", index=False)
         print(f"Сгенерировано {len(metadata)} кадров.")
 
 if __name__ == "__main__":
