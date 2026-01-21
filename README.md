@@ -90,6 +90,7 @@ python -m src.inference
 ```
 
 Run the subpixel analysis:
+
 Open and execute `Subpixel.ipynb` in Jupyter Lab or Google Colab.
 
 All hyperparameters (image size, distortions, timesteps, network depth) are configurable in `DiffScale-main/configs/diffusion_config.yaml`.
