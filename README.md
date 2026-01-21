@@ -2,7 +2,7 @@
 
 **Synthetic Code Scale Generation via Conditional Diffusion Models for Robust Angular Sensing**
 
-DiffScale is a deep learning framework designed to generate synthetic images of optical code scales used in digital angle transducers. The system leverages conditional diffusion models to produce both ideal and realistically distorted image sequences (800×4 pixels), enabling robust training and evaluation of angular reading algorithms under adverse conditions typical of robotic applications.
+DiffScale is a deep learning framework designed to generate synthetic images of optical code scales used in digital angle transducers. The system leverages conditional diffusion models to produce both ideal and realistically distorted image sequences (800x4 pixels), enabling robust training and evaluation of angular reading algorithms under adverse conditions typical of robotic applications.
 
 ## Overview
 
@@ -15,6 +15,10 @@ DiffScale addresses this challenge by:
 - Modeling static sensor-level defects (e.g., scratches or spots) that remain fixed in pixel coordinates across frames, reflecting real-world acquisition conditions.
 
 - Providing a scalable, controllable, and fully synthetic data source that eliminates the need for costly and time-consuming physical data collection.
+
+## Subpixel Displacement Estimation (`Subpixel.ipynb`)
+
+This repository includes a comprehensive study on **subpixel displacement estimation** using the generated datasets. The notebook `Subpixel.ipynb` implements and evaluates a pipeline for achieving nanometer-level resolution in tracking moving fringe patterns under severe distortions.
 
 ## Key Features
 
@@ -37,22 +41,25 @@ DiffScale addresses this challenge by:
 ## Project Structure
 
 ```
-DiffScale-main/
-├── configs/              # Model and training hyperparameters
-├── data/                 # Generated datasets (excluded from Git)
-│   ├── clean/            # Ideal (distortion-free) scale images
-│   ├── distorted/        # Realistically distorted images
-│   └── metadata.csv      # Annotations: sequence_id, frame_id, offset, distortion_type, paths
-├── src/
-│   ├── data_gen.py       # Synthetic data generator with coherent sequences
-│   ├── dataset.py        # PyTorch Dataset with conditional labels
-│   ├── model.py          # Conditional diffusion model and U-Net
-│   ├── train.py          # Training loop with checkpointing
-│   └── inference.py      # Sample generation from trained model
-├── outputs/              # Model weights and generated samples
-├── checkpoints/          # Training checkpoints (optimizer state, epoch, etc.)
-├── requirements.txt      # Python dependencies
-└── README.md
+DiffScale/
+├── DiffScale-main/           # Main project source code
+│   ├── configs/              # Model and training hyperparameters
+│   ├── data/                 # Generated datasets (excluded from Git)
+│   │   ├── clean/            # Ideal (distortion-free) scale images
+│   │   ├── distorted/        # Realistically distorted images
+│   │   └── metadata.csv      # Annotations: sequence_id, frame_id, offset, distortion_type, paths
+│   ├── src/
+│   │   ├── data_gen.py       # Synthetic data generator with coherent sequences
+│   │   ├── dataset.py        # PyTorch Dataset with conditional labels
+│   │   ├── model.py          # Conditional diffusion model and U-Net
+│   │   ├── train.py          # Training loop with checkpointing
+│   │   └── inference.py      # Sample generation from trained model
+│   ├── outputs/              # Model weights and generated samples
+│   ├── checkpoints/          # Training checkpoints (optimizer state, epoch, etc.)
+│   └── requirements.txt      # Python dependencies for the core framework
+├── Subpixel.ipynb            # Main research notebook for subpixel displacement estimation
+├── requirements.txt          # Python dependencies for the entire project (including Subpixel analysis)
+└── README.md                 # This file
 ```
 
 ## Usage
@@ -60,6 +67,11 @@ DiffScale-main/
 Install dependencies:
 ```bash
 pip install -r requirements.txt
+```
+
+Navigate to the main project directory:
+```bash
+cd DiffScale-main
 ```
 
 Generate dataset (ideal + distorted sequences):
@@ -76,6 +88,9 @@ Generate synthetic samples:
 ```bash
 python -m src.inference
 ```
+
+Run the subpixel analysis:
+Open and execute `Subpixel.ipynb` in Jupyter Lab or Google Colab.
 
 All hyperparameters (image size, distortions, timesteps, network depth) are configurable in `DiffScale-main/configs/diffusion_config.yaml`.
 
